@@ -510,99 +510,51 @@ if page == "Front Page":
         </div>
     """, unsafe_allow_html=True)
 
-    # ── Lead story chart: annotated area + severity split ────────────────────
-    left, right = st.columns([1.35, 1])
+    # ══════════════════════════════════════════════════════════════
+    # CHART 1 — stacked-area of accidents over time
+    # ══════════════════════════════════════════════════════════════
+    by_year = home_df.groupby("Year").size().reset_index(name="count")
+    by_year_sev = home_df.groupby(["Year", "severity_label"]).size().reset_index(name="count")
 
-    with left:
-        by_year = home_df.groupby("Year").size().reset_index(name="count")
-        by_year_sev = home_df.groupby(["Year", "severity_label"]).size().reset_index(name="count")
-
-        if len(by_year) > 0:
-            # Editorial stacked-area chart
-            fig = go.Figure()
-            for sev in severity_order:
-                sub = by_year_sev[by_year_sev["severity_label"] == sev]
-                sub = sub.set_index("Year").reindex(by_year["Year"], fill_value=0).reset_index()
-                fig.add_trace(go.Scatter(
-                    x=sub["Year"], y=sub["count"],
-                    mode="lines",
-                    name=sev,
-                    stackgroup="one",
-                    line=dict(width=0.5, color=SEV_COLORS[sev]),
-                    fillcolor=SEV_COLORS[sev],
-                    hovertemplate=f"<b>{sev}</b><br>%{{x}}: %{{y:,}}<extra></extra>",
-                ))
-            peak = by_year.loc[by_year["count"].idxmax()]
-            fig.update_layout(
-                xaxis=dict(tickmode="array", tickvals=by_year["Year"].tolist(),
-                           tickfont=dict(size=12)),
-                yaxis=dict(rangemode="tozero", title=""),
-                legend=dict(orientation="h", y=-0.18, x=0),
-                annotations=[dict(
-                    x=peak["Year"], y=peak["count"],
-                    text=f"<b>{int(peak['count']):,}</b><br><span style='font-size:9px'>PEAK</span>",
-                    showarrow=True, arrowhead=0, ax=0, ay=-40, arrowcolor=RED,
-                    font=dict(family="DM Mono, monospace", size=11, color=RED),
-                    bgcolor=INK, bordercolor=RED, borderwidth=1, borderpad=4,
-                )],
-            )
-            st.plotly_chart(
-                editorial_layout(fig, 440,
-                                 "Six years of crashes, stacked by severity",
-                                 "THE CURVE · AREA CHART · DATA: ETHIOPIAN POLICE"),
-                use_container_width=True,
-                config={"displayModeBar": False},
-            )
-
-    with right:
-        # Editorial proportion bar — severity share
-        sev_counts = home_df["severity_label"].value_counts().reindex(severity_order).fillna(0)
-        total_sev = sev_counts.sum()
-
-        prop = go.Figure()
-        cumul = 0
+    if len(by_year) > 0:
+        fig = go.Figure()
         for sev in severity_order:
-            pct = (sev_counts[sev] / total_sev * 100) if total_sev else 0
-            prop.add_trace(go.Bar(
-                y=["Distribution"], x=[sev_counts[sev]],
-                orientation="h",
-                marker=dict(color=SEV_COLORS[sev], line=dict(color=INK, width=2)),
-                name=f"{sev} · {pct:.1f}%",
-                text=f"<b>{pct:.1f}%</b><br>{int(sev_counts[sev]):,}",
-                textposition="inside",
-                insidetextanchor="middle",
-                textfont=dict(family="Fraunces, serif", size=15, color=INK),
-                hovertemplate=f"<b>{sev}</b><br>{int(sev_counts[sev]):,} ({pct:.2f}%)<extra></extra>",
+            sub = by_year_sev[by_year_sev["severity_label"] == sev]
+            sub = sub.set_index("Year").reindex(by_year["Year"], fill_value=0).reset_index()
+            fig.add_trace(go.Scatter(
+                x=sub["Year"], y=sub["count"],
+                mode="lines", name=sev, stackgroup="one",
+                line=dict(width=0.5, color=SEV_COLORS[sev]),
+                fillcolor=SEV_COLORS[sev],
+                hovertemplate=f"<b>{sev}</b><br>%{{x}}: %{{y:,}}<extra></extra>",
             ))
-            cumul += sev_counts[sev]
-
-        prop.update_layout(
-            barmode="stack",
-            xaxis=dict(visible=False),
-            yaxis=dict(visible=False),
-            showlegend=True,
-            legend=dict(orientation="h", y=-0.4, x=0, font=dict(size=10)),
-            margin=dict(l=0, r=0, t=80, b=50),
+        peak = by_year.loc[by_year["count"].idxmax()]
+        fig.update_layout(
+            xaxis=dict(tickmode="array", tickvals=by_year["Year"].tolist(),
+                       tickfont=dict(size=12)),
+            yaxis=dict(rangemode="tozero", title="Accidents per year"),
+            legend=dict(orientation="h", y=-0.15, x=0),
+            annotations=[dict(
+                x=peak["Year"], y=peak["count"],
+                text=f"<b>{int(peak['count']):,}</b><br><span style='font-size:9px'>PEAK</span>",
+                showarrow=True, arrowhead=0, ax=0, ay=-40, arrowcolor=RED,
+                font=dict(family="DM Mono, monospace", size=11, color=RED),
+                bgcolor=INK, bordercolor=RED, borderwidth=1, borderpad=4,
+            )],
         )
-        prop = editorial_layout(prop, 230, "The split", "PROPORTION · ALL INCIDENTS")
-        st.plotly_chart(prop, use_container_width=True, config={"displayModeBar": False})
-
-        # Big stats stack
+        st.plotly_chart(
+            editorial_layout(fig, 420,
+                             "CHART 1 · Six years of crashes, stacked by severity",
+                             "AREA CHART · ONE COLOURED BAND PER SEVERITY LEVEL"),
+            use_container_width=True, config={"displayModeBar": False},
+        )
         st.markdown(f"""
-            <div style='display:flex;flex-direction:column;gap:10px;margin-top:10px'>
-              <div style='background:{PAPER};border:1px solid {RULE};padding:14px;position:relative'>
-                <div style='position:absolute;top:0;left:0;width:26px;height:2px;background:{RED}'></div>
-                <div style='font-family:DM Mono,monospace;font-size:10px;color:{MUTED};letter-spacing:0.15em;text-transform:uppercase'>One in every</div>
-                <div style='font-family:Fraunces,serif;font-size:2.4rem;font-weight:800;color:{CREAM};line-height:1'>{int(100/fatal_pct) if fatal_pct else 0}</div>
-                <div style='font-family:Inter;font-size:12px;color:{CREAM_DIM}'>accidents ends in a fatality</div>
-              </div>
-              <div style='background:{PAPER};border:1px solid {RULE};padding:14px;position:relative'>
-                <div style='position:absolute;top:0;left:0;width:26px;height:2px;background:{AMBER}'></div>
-                <div style='font-family:DM Mono,monospace;font-size:10px;color:{MUTED};letter-spacing:0.15em;text-transform:uppercase'>Average casualties</div>
-                <div style='font-family:Fraunces,serif;font-size:2.4rem;font-weight:800;color:{CREAM};line-height:1'>{home_df['Number_of_casualties'].mean():.2f}</div>
-                <div style='font-family:Inter;font-size:12px;color:{CREAM_DIM}'>per recorded incident</div>
-              </div>
-            </div>
+          <div style='background:{PAPER};border-left:3px solid {TEAL};padding:12px 16px;margin:8px 0 24px;font-size:13px;line-height:1.6;color:{CREAM_DIM}'>
+            <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase'>How to read this</b><br/>
+            Each coloured band is a severity class. The band's thickness = number of accidents that year. The total height = all accidents that year.<br/>
+            <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;display:block;margin-top:8px'>Key takeaway</b>
+            Peak year recorded <b>{int(peak['count']):,}</b> crashes — but the <i>shape</i> is mostly flat: Ethiopia's accident count doesn't spike, it accumulates.
+          </div>
         """, unsafe_allow_html=True)
 
     st.markdown(
@@ -612,8 +564,9 @@ if page == "Front Page":
         unsafe_allow_html=True,
     )
 
-    # Dumbbell: cause volume vs fatal rate — replaces old donut
-    st.markdown("### What puts people on the road to hospital — and worse")
+    # ══════════════════════════════════════════════════════════════
+    # CHART 2 — Dumbbell: cause volume vs fatal rate
+    # ══════════════════════════════════════════════════════════════
     cause_counts = home_df["Cause_of_accident"].value_counts().head(10).reset_index()
     cause_counts.columns = ["cause", "count"]
     fr = fatal_rate_series(home_df, "Cause_of_accident").rename(columns={"Cause_of_accident": "cause"})
@@ -662,11 +615,98 @@ if page == "Front Page":
     )
     st.plotly_chart(
         editorial_layout(fig_dumb, 500,
-                         "Volume vs. lethality, by cause",
+                         "CHART 2 · Volume vs. lethality, by cause",
                          "DUMBBELL · WHITE = SHARE OF VOLUME · RED = FATAL RATE"),
         use_container_width=True, config={"displayModeBar": False},
     )
-    st.caption("White dots are scaled relative to the most common cause. Red diamonds are the raw fatal rate within that cause — not all frequent causes are lethal, and vice versa.")
+    st.markdown(f"""
+      <div style='background:{PAPER};border-left:3px solid {AMBER};padding:12px 16px;margin:8px 0 24px;font-size:13px;line-height:1.6;color:{CREAM_DIM}'>
+        <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase'>How to read this</b><br/>
+        Each row is a cause. The white dot sits where the cause falls on the volume scale (100 = most common). The red diamond sits at that cause's fatal rate.<br/>
+        <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;display:block;margin-top:8px'>Key takeaway</b>
+        Common ≠ deadly. A cause can be frequent but mostly leave slight injuries, while a rarer cause may kill a larger share of the people it touches.
+      </div>
+    """, unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════
+    # CHART 3 — Data table (interactive register of records)
+    # ══════════════════════════════════════════════════════════════
+    st.markdown("### The Register")
+    st.markdown(
+        f"<div style='font-family:DM Mono,monospace;font-size:11px;color:{MUTED};"
+        f"letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px'>"
+        "INTERACTIVE DATA TABLE · FILTER, SORT, SEARCH EVERY ROW</div>",
+        unsafe_allow_html=True,
+    )
+
+    # Row-level filters
+    tc1, tc2, tc3 = st.columns(3)
+    sev_filter   = tc1.selectbox("Severity", severity_options(), key="tbl_sev")
+    cause_filter = tc2.selectbox("Cause", get_options("Cause_of_accident", drop_unknown=True), key="tbl_cause")
+    hour_filter  = tc3.selectbox("Time window",
+                                 ["All"] + time_period_order, key="tbl_tp")
+
+    tbl = home_df.copy()
+    if sev_filter != "All":
+        tbl = tbl[tbl["severity_label"] == sev_filter]
+    if cause_filter != "All":
+        tbl = tbl[tbl["Cause_of_accident"] == cause_filter]
+    if hour_filter != "All":
+        tbl = tbl[tbl["time_period"] == hour_filter]
+
+    display_cols = [
+        "Year", "Time", "Day_of_week", "severity_label",
+        "Cause_of_accident", "Type_of_vehicle",
+        "Age_band_of_driver", "Sex_of_driver", "Driving_experience",
+        "Area_accident_occured", "Number_of_casualties",
+        "Weather_conditions", "Light_conditions", "Road_surface_conditions",
+    ]
+    display_cols = [c for c in display_cols if c in tbl.columns]
+    tbl_show = tbl[display_cols].rename(columns={
+        "severity_label": "Severity",
+        "Cause_of_accident": "Cause",
+        "Type_of_vehicle": "Vehicle",
+        "Age_band_of_driver": "Age band",
+        "Sex_of_driver": "Gender",
+        "Driving_experience": "Experience",
+        "Area_accident_occured": "Area",
+        "Number_of_casualties": "Casualties",
+        "Weather_conditions": "Weather",
+        "Light_conditions": "Light",
+        "Road_surface_conditions": "Surface",
+        "Day_of_week": "Day",
+    })
+    # Title-case text columns for readability
+    for c in tbl_show.select_dtypes(include="object").columns:
+        tbl_show[c] = tbl_show[c].astype(str).str.title()
+
+    st.markdown(
+        f"<div style='font-family:DM Mono,monospace;font-size:11px;color:{CREAM_DIM};"
+        f"margin:6px 0 8px'>Showing <b style='color:{RED}'>{len(tbl_show):,}</b> of "
+        f"<b>{len(home_df):,}</b> filtered records · click any column header to sort</div>",
+        unsafe_allow_html=True,
+    )
+    st.dataframe(
+        tbl_show,
+        use_container_width=True,
+        height=420,
+        hide_index=True,
+    )
+
+    # Download button — student/analyst friendly
+    csv_bytes = tbl_show.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        "⬇  Download filtered CSV",
+        data=csv_bytes,
+        file_name=f"road_ledger_filtered_{len(tbl_show)}rows.csv",
+        mime="text/csv",
+    )
+    st.markdown(f"""
+      <div style='background:{PAPER};border-left:3px solid {NAVY};padding:12px 16px;margin:14px 0;font-size:13px;line-height:1.6;color:{CREAM_DIM}'>
+        <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase'>How to use this table</b><br/>
+        Every row is one real crash record from the Ethiopian Police dataset. Use the three drop-downs above to narrow the register, click any column header to sort, and export the result as CSV for your own analysis (e.g. SPSS, Excel, Jupyter).
+      </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("<div class='endmark'><span>●</span>  <span>●</span>  <span>●</span></div>", unsafe_allow_html=True)
 
@@ -729,10 +769,16 @@ elif page == "Anatomy of a Crash":
     fig_sankey.update_layout(font=dict(family="Inter, sans-serif", size=11, color=CREAM_DIM))
     st.plotly_chart(
         editorial_layout(fig_sankey, 520,
-                         "From cause to consequence — the crash flow",
+                         "CHART 1 · From cause to consequence — the crash flow",
                          "SANKEY · TOP 8 CAUSES → SEVERITY"),
         use_container_width=True, config={"displayModeBar": False},
     )
+    st.markdown(f"""
+      <div style='background:{PAPER};border-left:3px solid {TEAL};padding:12px 16px;margin:6px 0 20px;font-size:13px;line-height:1.6;color:{CREAM_DIM}'>
+        <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase'>How to read this</b><br/>
+        Read it left → right. Each ribbon is a flow of accidents. Thicker ribbon = more incidents. The colour tells you where they ended up (slight / serious / fatal).
+      </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("<br/>", unsafe_allow_html=True)
     left, right = st.columns([1.05, 1])
@@ -777,7 +823,7 @@ elif page == "Anatomy of a Crash":
         )
         st.plotly_chart(
             editorial_layout(fig_lol, 500,
-                             "The edge cases that kill",
+                             "CHART 2 · The edge cases that kill",
                              "LOLLIPOP · CAUSES WITH ≥ 30 RECORDS · SORTED BY FATAL RATE"),
             use_container_width=True, config={"displayModeBar": False},
         )
@@ -819,7 +865,7 @@ elif page == "Anatomy of a Crash":
         )
         st.plotly_chart(
             editorial_layout(fig_rd, 500,
-                             "Road surface × severity, normalised",
+                             "CHART 3 · Road surface × severity, normalised",
                              "100% STACKED · EACH ROW SUMS TO 100"),
             use_container_width=True, config={"displayModeBar": False},
         )
@@ -940,10 +986,16 @@ elif page == "The Cause Race":
     )
     st.plotly_chart(
         editorial_layout(fig_race, 560,
-                         "The top six causes, year by year",
+                         "CHART 1 · The top six causes, year by year",
                          "BAR-CHART RACE · SORTED ASCENDING EACH FRAME"),
         use_container_width=True, config={"displayModeBar": False},
     )
+    st.markdown(f"""
+      <div style='background:{PAPER};border-left:3px solid {TEAL};padding:12px 16px;margin:8px 0 24px;font-size:13px;line-height:1.6;color:{CREAM_DIM}'>
+        <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase'>How to read this</b><br/>
+        Bars are re-sorted every year. The longer the bar, the more accidents that cause produced. Watch for a cause that overtakes another — that's a shift in risk over time.
+      </div>
+    """, unsafe_allow_html=True)
 
     # ── SLOPEGRAPH: rank change first year vs last year ──────────────────────
     st.markdown("### The rankings, then and now")
@@ -987,10 +1039,151 @@ elif page == "The Cause Race":
         margin=dict(l=180, r=180),
     )
     st.plotly_chart(
-        editorial_layout(fig_slope, 420, "Rank shift, first year vs. last year",
+        editorial_layout(fig_slope, 420, "CHART 2 · Rank shift, first year vs. last year",
                          "SLOPEGRAPH · HIGHER = MORE COMMON"),
         use_container_width=True, config={"displayModeBar": False},
     )
+    st.markdown(f"""
+      <div style='background:{PAPER};border-left:3px solid {AMBER};padding:12px 16px;margin:8px 0 24px;font-size:13px;line-height:1.6;color:{CREAM_DIM}'>
+        <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase'>How to read this</b><br/>
+        Each cause has two dots — its rank in the first year (left) and its rank in the last year (right). A line tilting downwards = that cause climbed up the leaderboard (got more common); tilting upwards = it dropped.
+      </div>
+    """, unsafe_allow_html=True)
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # CHART 3 — 3D RISK-SPACE SCATTER (rotating camera animation)
+    # Meaningful: every top cause is plotted in 3-axis "risk space"
+    #   X = accident count, Y = avg casualties, Z = fatal rate (%)
+    # A looping 3D rotation makes the spatial relationships legible
+    # ═══════════════════════════════════════════════════════════════════════
+    st.markdown("### A 3D risk space")
+    st.caption("The one 3D scene in this report. Each cause becomes a point in three dimensions — how often, how deadly, how bloody. Press ▶ to orbit around it.")
+
+    r3 = (
+        filt[filt["Cause_of_accident"].isin(TOP_CAUSES)]
+        .groupby("Cause_of_accident")
+        .agg(
+            count=("Cause_of_accident", "count"),
+            avg_casualties=("Number_of_casualties", "mean"),
+            total_casualties=("Number_of_casualties", "sum"),
+            fatal_rate=("severity_label", lambda x: (x == "Fatal Injury").mean() * 100),
+        ).reset_index()
+    )
+    r3["cause_t"] = r3["Cause_of_accident"].str.title().apply(lambda x: shorten(x, 28))
+    r3["color"] = r3["Cause_of_accident"].apply(lambda c: CAUSE_COLOR_MAP[c.title()])
+    r3["avg_casualties"] = r3["avg_casualties"].round(3)
+    r3["fatal_rate"] = r3["fatal_rate"].round(2)
+
+    # Base 3D scatter
+    scatter3d = go.Scatter3d(
+        x=r3["count"], y=r3["avg_casualties"], z=r3["fatal_rate"],
+        mode="markers+text",
+        marker=dict(
+            size=(r3["total_casualties"] / r3["total_casualties"].max() * 28 + 10).tolist(),
+            color=r3["color"].tolist(),
+            opacity=0.88,
+            line=dict(color=INK, width=1),
+        ),
+        text=r3["cause_t"],
+        textposition="top center",
+        textfont=dict(family="Fraunces, serif", size=12, color=CREAM),
+        hovertemplate=(
+            "<b>%{text}</b><br>"
+            "Accidents: %{x:,}<br>"
+            "Avg casualties: %{y:.2f}<br>"
+            "Fatal rate: %{z:.2f}%<extra></extra>"
+        ),
+        name="",
+    )
+
+    # Drop-lines from each point to the floor so depth is readable
+    drops = []
+    for _, row in r3.iterrows():
+        drops.append(go.Scatter3d(
+            x=[row["count"], row["count"]],
+            y=[row["avg_casualties"], row["avg_casualties"]],
+            z=[0, row["fatal_rate"]],
+            mode="lines",
+            line=dict(color=RULE, width=2),
+            showlegend=False, hoverinfo="skip",
+        ))
+
+    fig3d = go.Figure(data=[scatter3d] + drops)
+
+    # Rotation frames — 36 frames, one full orbit
+    import math
+    n_frames = 36
+    radius = 2.2
+    frames3d = []
+    for i in range(n_frames):
+        ang = 2 * math.pi * i / n_frames
+        cam = dict(
+            eye=dict(
+                x=radius * math.cos(ang),
+                y=radius * math.sin(ang),
+                z=1.1 + 0.2 * math.sin(2 * ang),
+            )
+        )
+        frames3d.append(go.Frame(name=f"f{i}", layout=go.Layout(scene_camera=cam)))
+    fig3d.frames = frames3d
+
+    fig3d.update_layout(
+        scene=dict(
+            bgcolor=INK,
+            xaxis=dict(
+                title=dict(text="Accident count →", font=dict(size=11, color=CREAM_DIM)),
+                backgroundcolor=PAPER, gridcolor=RULE, zerolinecolor=RULE,
+                tickfont=dict(size=10, color=CREAM_DIM), showspikes=False,
+            ),
+            yaxis=dict(
+                title=dict(text="Avg casualties →", font=dict(size=11, color=CREAM_DIM)),
+                backgroundcolor=PAPER, gridcolor=RULE, zerolinecolor=RULE,
+                tickfont=dict(size=10, color=CREAM_DIM), showspikes=False,
+            ),
+            zaxis=dict(
+                title=dict(text="Fatal rate (%)  ↑", font=dict(size=11, color=RED)),
+                backgroundcolor=PAPER, gridcolor=RULE, zerolinecolor=RULE,
+                tickfont=dict(size=10, color=CREAM_DIM), showspikes=False,
+                ticksuffix="%",
+            ),
+            camera=dict(eye=dict(x=radius, y=0, z=1.1)),
+            aspectmode="cube",
+        ),
+        showlegend=False,
+        margin=dict(l=0, r=0, t=20, b=10),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        height=620,
+        updatemenus=[dict(
+            type="buttons", showactive=False,
+            x=0.02, y=0.02, xanchor="left", yanchor="bottom",
+            bgcolor=PAPER, bordercolor=RULE,
+            font=dict(family="DM Mono, monospace", size=11, color=CREAM),
+            buttons=[
+                dict(label="▶  Orbit", method="animate",
+                     args=[None, dict(frame=dict(duration=90, redraw=True),
+                                      transition=dict(duration=0),
+                                      fromcurrent=True, mode="immediate")]),
+                dict(label="❚❚  Stop", method="animate",
+                     args=[[None], dict(frame=dict(duration=0, redraw=False),
+                                        mode="immediate", transition=dict(duration=0))]),
+            ],
+        )],
+    )
+
+    st.plotly_chart(fig3d, use_container_width=True, config={"displayModeBar": False})
+    st.markdown(f"""
+      <div style='background:{PAPER};border-left:3px solid {RED};padding:12px 16px;margin:6px 0 20px;font-size:13px;line-height:1.6;color:{CREAM_DIM}'>
+        <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase'>How to read this 3-D chart</b><br/>
+        Three axes, three questions about each cause of accident:<br/>
+        &nbsp;&nbsp;<b style='color:{CREAM}'>X — horizontal depth:</b> how often it happens.<br/>
+        &nbsp;&nbsp;<b style='color:{CREAM}'>Y — horizontal width:</b> average casualties per crash.<br/>
+        &nbsp;&nbsp;<b style='color:{RED}'>Z — vertical height:</b> % of crashes that were fatal.<br/>
+        The bubble size scales with total casualties. Drop-lines connect each point to the floor so you can read its exact X, Y position.<br/>
+        <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;display:block;margin-top:8px'>Key takeaway</b>
+        A cause high on the Z-axis and far to the right on X is both frequent <i>and</i> lethal — that's the worst corner of the cube. A cause low on Z but high on X is common but largely survivable.
+      </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("<div class='endmark'><span>●</span>  <span>●</span>  <span>●</span></div>", unsafe_allow_html=True)
 
@@ -1038,10 +1231,16 @@ elif page == "Who & When":
         )
         st.plotly_chart(
             editorial_layout(fig_sb, 500,
-                             "Weather → light → severity",
+                             "CHART 1 · Weather → light → severity",
                              "SUNBURST · HIERARCHY OF CONDITIONS"),
             use_container_width=True, config={"displayModeBar": False},
         )
+        st.markdown(f"""
+          <div style='background:{PAPER};border-left:3px solid {TEAL};padding:10px 14px;margin:6px 0 14px;font-size:12.5px;line-height:1.55;color:{CREAM_DIM}'>
+            <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:10.5px;letter-spacing:0.15em;text-transform:uppercase'>How to read this</b><br/>
+            Ring 1 = weather, ring 2 = light. The colour of each slice tells you the severity mix for that exact combination.
+          </div>
+        """, unsafe_allow_html=True)
 
     # ── HORIZON-style day-of-week × severity (100% normalised) ──────────────
     with right:
@@ -1071,10 +1270,16 @@ elif page == "Who & When":
         )
         st.plotly_chart(
             editorial_layout(fig_dow, 500,
-                             "Severity composition by weekday",
+                             "CHART 2 · Severity composition by weekday",
                              "100% STACKED · HOW DEADLY IS EACH DAY?"),
             use_container_width=True, config={"displayModeBar": False},
         )
+        st.markdown(f"""
+          <div style='background:{PAPER};border-left:3px solid {AMBER};padding:10px 14px;margin:6px 0 14px;font-size:12.5px;line-height:1.55;color:{CREAM_DIM}'>
+            <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:10.5px;letter-spacing:0.15em;text-transform:uppercase'>How to read this</b><br/>
+            Every weekday's bar is forced to 100%. Look at the red tip — that's the fatal share on that day. Not every Monday kills equally.
+          </div>
+        """, unsafe_allow_html=True)
 
     # ── RIDGELINE: casualties by severity (using violin traces offset) ──────
     st.markdown("### The spread of casualties per accident")
@@ -1102,63 +1307,18 @@ elif page == "Who & When":
         )
         st.plotly_chart(
             editorial_layout(fig_ridge, 380,
-                             "Casualty distribution, per severity band",
+                             "CHART 3 · Casualty distribution, per severity band",
                              "RIDGELINE · WIDTH = DENSITY · BOX = IQR"),
             use_container_width=True, config={"displayModeBar": False},
         )
-
-    # ── ANNOTATED HEATMAP: weather × severity ───────────────────────────────
-    weather_order_list = ["normal", "cloudy", "windy", "raining", "raining and windy",
-                          "fog or mist", "snow", "other", "unknown"]
-    h = filt.groupby(["Weather_conditions", "severity_label"]).size().reset_index(name="count")
-    hp = h.pivot(index="Weather_conditions", columns="severity_label", values="count").fillna(0)
-    rows = [w for w in weather_order_list if w in hp.index] + [r for r in hp.index if r not in weather_order_list]
-    hp = hp.loc[rows]
-    hp = hp[[c for c in severity_order if c in hp.columns]]
-
-    left2, right2 = st.columns([1.3, 1])
-    with left2:
-        # Row-normalised heat
-        hp_norm = hp.div(hp.sum(axis=1), axis=0) * 100
-        z = hp_norm.values
-        text = np.array([[f"<b>{int(hp.iat[i,j])}</b><br>{hp_norm.iat[i,j]:.0f}%" for j in range(hp.shape[1])] for i in range(hp.shape[0])])
-        fig_h = go.Figure(go.Heatmap(
-            z=z,
-            x=[c.replace(" Injury", "") for c in hp.columns],
-            y=[r.title() for r in hp.index],
-            colorscale=[[0, PAPER2], [0.5, AMBER], [1, RED]],
-            text=text, texttemplate="%{text}",
-            textfont=dict(family="Inter", size=10.5, color=CREAM),
-            hovertemplate="Weather: %{y}<br>Severity: %{x}<br>Share: %{z:.1f}%<extra></extra>",
-            colorbar=dict(title=dict(text="Row %", font=dict(size=10, color=MUTED)),
-                          tickfont=dict(size=9, color=MUTED), thickness=10, len=0.7),
-        ))
-        st.plotly_chart(
-            editorial_layout(fig_h, 440,
-                             "Weather × severity, row-normalised",
-                             "HEATMAP · EACH ROW = 100% · SHADE = SEVERITY SHARE"),
-            use_container_width=True, config={"displayModeBar": False},
-        )
-
-    # ── TREEMAP: age × severity ──────────────────────────────────────────────
-    with right2:
-        tm = filt.groupby(["severity_label", "age_band_clean"]).size().reset_index(name="count")
-        tm = tm[tm["count"] > 0]
-        fig_tm = px.treemap(
-            tm, path=["severity_label", "age_band_clean"], values="count",
-            color="severity_label", color_discrete_map=SEV_COLORS,
-        )
-        fig_tm.update_traces(
-            textinfo="label+value+percent parent",
-            textfont=dict(family="Inter", size=11, color=INK),
-            marker=dict(line=dict(color=INK, width=2)),
-        )
-        st.plotly_chart(
-            editorial_layout(fig_tm, 440,
-                             "Age groups within each severity",
-                             "TREEMAP · PROPORTIONAL BLOCKS"),
-            use_container_width=True, config={"displayModeBar": False},
-        )
+        st.markdown(f"""
+          <div style='background:{PAPER};border-left:3px solid {RED};padding:12px 16px;margin:6px 0 20px;font-size:13px;line-height:1.6;color:{CREAM_DIM}'>
+            <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase'>How to read this</b><br/>
+            Each wave shape is a density curve — wider = more accidents at that casualty count. The small box inside shows the middle 50% of cases, and the white line is the average.<br/>
+            <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;display:block;margin-top:8px'>Key takeaway</b>
+            Fatal crashes skew right — they carry a heavier casualty tail than slight injuries do.
+          </div>
+        """, unsafe_allow_html=True)
 
     st.info("Normal weather dominates the accident count simply because most driving happens in it. The sunburst and 100%-stacked views correct for this by showing *shares*, not raw counts.")
     st.markdown("<div class='endmark'><span>●</span>  <span>●</span>  <span>●</span></div>", unsafe_allow_html=True)
@@ -1226,7 +1386,7 @@ elif page == "On the Road":
     )
     st.plotly_chart(
         editorial_layout(fig_db, 520,
-                         "Vehicle types — common vs. lethal",
+                         "CHART 1 · Vehicle types — common vs. lethal",
                          "DUMBBELL · VOLUME (WHITE) vs FATAL RATE (RED)"),
         use_container_width=True, config={"displayModeBar": False},
     )
@@ -1260,7 +1420,7 @@ elif page == "On the Road":
         )
         st.plotly_chart(
             editorial_layout(fig_bub, 420,
-                             "Pile-up size × human cost",
+                             "CHART 2 · Pile-up size × human cost",
                              "BUBBLE · SIZE = INCIDENTS · MORE VEHICLES, MORE LIVES"),
             use_container_width=True, config={"displayModeBar": False},
         )
@@ -1297,7 +1457,7 @@ elif page == "On the Road":
         fig_sv.update_layout(legend=dict(orientation="h", y=1.08, x=0))
         st.plotly_chart(
             editorial_layout(fig_sv, 420,
-                             "Vehicle service age — volume & lethality",
+                             "CHART 3 · Vehicle service age — volume & lethality",
                              "DUAL AXIS · BARS = COUNT · RED LINE = FATAL RATE"),
             use_container_width=True, config={"displayModeBar": False},
         )
@@ -1357,7 +1517,7 @@ elif page == "The Driver":
     fig_pc.update_layout(margin=dict(l=60, r=40, t=78, b=20))
     st.plotly_chart(
         editorial_layout(fig_pc, 520,
-                         "Age → Experience → Education → Severity",
+                         "CHART 1 · Age → Experience → Education → Severity",
                          "PARALLEL CATEGORIES · COLOUR = SEVERITY"),
         use_container_width=True, config={"displayModeBar": False},
     )
@@ -1402,7 +1562,7 @@ elif page == "The Driver":
         )
         st.plotly_chart(
             editorial_layout(fig_rd, 460,
-                             "Severity shape, by age band",
+                             "CHART 2 · Severity shape, by age band",
                              "RADAR · EACH AGE NORMALISED TO 100%"),
             use_container_width=True, config={"displayModeBar": False},
         )
@@ -1440,55 +1600,18 @@ elif page == "The Driver":
         fig_e.update_layout(legend=dict(orientation="h", y=1.08, x=0))
         st.plotly_chart(
             editorial_layout(fig_e, 460,
-                             "Experience — volume & lethality",
+                             "CHART 3 · Experience — volume & lethality",
                              "DUAL AXIS · NEWCOMERS DRIVE MORE CRASHES, NOT NECESSARILY DEADLIER ONES"),
             use_container_width=True, config={"displayModeBar": False},
         )
-
-    # ── Education lollipop (colored by fatal rate) ──────────────────────────
-    ed = filt.copy()
-    ed["Educational_level"] = ed["Educational_level"].str.lower()
-    ec2 = ed["Educational_level"].value_counts().reindex(edu_order).fillna(0).reset_index()
-    ec2.columns = ["ed", "count"]
-    ef2 = fatal_rate_series(ed, "Educational_level").rename(columns={"Educational_level": "ed"})
-    ec2 = ec2.merge(ef2, on="ed", how="left").fillna(0)
-    ec2["label"] = ec2["ed"].str.title()
-    ec2 = ec2[ec2["count"] > 0]
-
-    fig_ed = go.Figure()
-    for _, r in ec2.iterrows():
-        fig_ed.add_trace(go.Scatter(
-            x=[r["label"], r["label"]], y=[0, r["count"]],
-            mode="lines", line=dict(color=RULE, width=2),
-            showlegend=False, hoverinfo="skip",
-        ))
-    fig_ed.add_trace(go.Scatter(
-        x=ec2["label"], y=ec2["count"], mode="markers+text",
-        marker=dict(
-            size=22, color=ec2["Fatal Rate (%)"],
-            colorscale=[[0, TEAL], [0.5, AMBER], [1, RED]],
-            cmin=0, cmax=max(ec2["Fatal Rate (%)"].max(), 5),
-            line=dict(color=INK, width=2),
-            colorbar=dict(title=dict(text="Fatal %", font=dict(size=10, color=MUTED)),
-                          thickness=10, len=0.6, tickfont=dict(size=9, color=MUTED)),
-        ),
-        text=[f"{int(c):,}" for c in ec2["count"]],
-        textposition="top center",
-        textfont=dict(family="DM Mono, monospace", size=10, color=CREAM_DIM),
-        showlegend=False,
-        hovertemplate="<b>%{x}</b><br>Accidents: %{y:,}<br>Fatal rate: %{marker.color:.2f}%<extra></extra>",
-    ))
-    fig_ed.update_layout(
-        xaxis=dict(title=""),
-        yaxis=dict(title="Accidents", rangemode="tozero"),
-    )
-    st.plotly_chart(
-        editorial_layout(fig_ed, 420,
-                         "Driver education — accidents, shaded by fatal rate",
-                         "LOLLIPOP · HEIGHT = VOLUME · COLOUR = LETHALITY"),
-        use_container_width=True, config={"displayModeBar": False},
-    )
-    st.caption("Junior-high drivers appear most simply because they are the most common education level on the road.")
+        st.markdown(f"""
+          <div style='background:{PAPER};border-left:3px solid {RED};padding:12px 16px;margin:6px 0 20px;font-size:13px;line-height:1.6;color:{CREAM_DIM}'>
+            <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase'>How to read this</b><br/>
+            Two scales overlap. The blue bars use the <b>left axis</b> (how many accidents each experience band produces). The red line uses the <b>right axis</b> (% of those crashes that were fatal).<br/>
+            <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;display:block;margin-top:8px'>Key takeaway</b>
+            A tall bar doesn't always mean a high red line — novice drivers crash often but not always fatally; experienced drivers crash less often but their crashes can be worse.
+          </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("<div class='endmark'><span>●</span>  <span>●</span>  <span>●</span></div>", unsafe_allow_html=True)
 
@@ -1551,7 +1674,7 @@ elif page == "Clock & Compass":
     with left:
         st.plotly_chart(
             editorial_layout(fig_clock, 520,
-                             "A 24-hour clock of crashes",
+                             "CHART 1 · A 24-hour clock of crashes",
                              "POLAR · HOUR AS ANGLE · LENGTH = FREQUENCY"),
             use_container_width=True, config={"displayModeBar": False},
         )
@@ -1574,46 +1697,16 @@ elif page == "Clock & Compass":
         fig_hm.update_layout(xaxis_title="Hour of day", yaxis_title="")
         st.plotly_chart(
             editorial_layout(fig_hm, 520,
-                             "Hour × day density",
+                             "CHART 2 · Hour × day density",
                              "HEATMAP · DARKEST ZONE = 16–19H, FRIDAYS"),
             use_container_width=True, config={"displayModeBar": False},
         )
-
-    # ── TIME-OF-DAY DUAL AXIS ───────────────────────────────────────────────
-    tp = filt[filt["time_period"] != "Unknown"]
-    tpc = tp.groupby("time_period").size().reset_index(name="count")
-    tpf = fatal_rate_series(tp, "time_period").rename(columns={"time_period": "time_period"})
-    tpm = tpc.merge(tpf, on="time_period")
-    tpm["time_period"] = pd.Categorical(tpm["time_period"], categories=time_period_order, ordered=True)
-    tpm = tpm.sort_values("time_period")
-
-    fig_tp = make_subplots(specs=[[{"secondary_y": True}]])
-    fig_tp.add_trace(go.Bar(
-        x=tpm["time_period"], y=tpm["count"],
-        marker=dict(color=NAVY, line=dict(color=INK, width=1)), opacity=0.85,
-        name="Accidents",
-        hovertemplate="<b>%{x}</b><br>%{y:,}<extra></extra>",
-    ), secondary_y=False)
-    fig_tp.add_trace(go.Scatter(
-        x=tpm["time_period"], y=tpm["Fatal Rate (%)"],
-        mode="lines+markers",
-        line=dict(color=RED, width=2.5),
-        marker=dict(size=12, color=RED, line=dict(color=INK, width=2)),
-        name="Fatal rate",
-        hovertemplate="Fatal rate: %{y:.2f}%<extra></extra>",
-    ), secondary_y=True)
-    fig_tp.update_yaxes(title_text="Accidents", secondary_y=False,
-                        gridcolor=RULE, zerolinecolor=RULE)
-    fig_tp.update_yaxes(title_text="Fatal rate (%)", secondary_y=True,
-                        ticksuffix="%", showgrid=False)
-    fig_tp.update_layout(legend=dict(orientation="h", y=1.08, x=0))
-    st.plotly_chart(
-        editorial_layout(fig_tp, 400,
-                         "When do crashes happen — and when do they kill?",
-                         "DUAL AXIS · BARS = VOLUME · RED LINE = FATAL RATE"),
-        use_container_width=True, config={"displayModeBar": False},
-    )
-    st.caption("Night hours hold a fraction of the accidents but a disproportionate share of deaths.")
+        st.markdown(f"""
+          <div style='background:{PAPER};border-left:3px solid {AMBER};padding:10px 14px;margin:6px 0 14px;font-size:12.5px;line-height:1.55;color:{CREAM_DIM}'>
+            <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:10.5px;letter-spacing:0.15em;text-transform:uppercase'>How to read this</b><br/>
+            Rows = weekdays, columns = hours. Brighter red = more crashes in that hour-day cell. Great for spotting rush-hour peaks.
+          </div>
+        """, unsafe_allow_html=True)
 
     # ── AREA FATAL-RATE LOLLIPOP ────────────────────────────────────────────
     a = filt.copy()
@@ -1652,11 +1745,18 @@ elif page == "Clock & Compass":
     )
     st.plotly_chart(
         editorial_layout(fig_al, 420,
-                         "Where fatal crashes cluster",
+                         "CHART 3 · Where fatal crashes cluster",
                          "LOLLIPOP · ≥ 20 RECORDS · FATAL RATE BY AREA"),
         use_container_width=True, config={"displayModeBar": False},
     )
-    st.info("Market and recreational areas — where pedestrians and vehicles mix at speed — carry disproportionate fatal share.")
+    st.markdown(f"""
+      <div style='background:{PAPER};border-left:3px solid {RED};padding:12px 16px;margin:6px 0 20px;font-size:13px;line-height:1.6;color:{CREAM_DIM}'>
+        <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase'>How to read this</b><br/>
+        Each row is an accident area. The line's length = that area's fatal rate. We drop any area with fewer than 20 records so the percentage is statistically meaningful.<br/>
+        <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;display:block;margin-top:8px'>Key takeaway</b>
+        Markets and recreational areas sit at the top — places where pedestrians and fast vehicles mix.
+      </div>
+    """, unsafe_allow_html=True)
     st.markdown("<div class='endmark'><span>●</span>  <span>●</span>  <span>●</span></div>", unsafe_allow_html=True)
 
 
@@ -1705,7 +1805,7 @@ elif page == "Collision Ledger":
                          xaxis=dict(tickangle=-25))
     st.plotly_chart(
         editorial_layout(fig_mx, 520,
-                         "Collision × movement matrix",
+                         "CHART 1 · Collision × movement matrix",
                          "HEATMAP · WHICH MANOEUVRE LEADS TO WHICH COLLISION"),
         use_container_width=True, config={"displayModeBar": False},
     )
@@ -1751,7 +1851,7 @@ elif page == "Collision Ledger":
         )
         st.plotly_chart(
             editorial_layout(fig_ml, 460,
-                             "Which manoeuvre kills?",
+                             "CHART 2 · Which manoeuvre kills?",
                              "LOLLIPOP · FATAL RATE BY VEHICLE MOVEMENT"),
             use_container_width=True, config={"displayModeBar": False},
         )
@@ -1783,39 +1883,16 @@ elif page == "Collision Ledger":
         ))
         st.plotly_chart(
             editorial_layout(fig_tm, 460,
-                             "Road surface — size = volume, shade = lethality",
+                             "CHART 3 · Road surface — size = volume, shade = lethality",
                              "TREEMAP · SURFACE TYPE"),
             use_container_width=True, config={"displayModeBar": False},
         )
-
-    # ── CASUALTY CLASS donut ────────────────────────────────────────────────
-    cas = filt[filt["Casualty_class"].str.lower() != "na"].copy()
-    if not cas.empty:
-        cc = cas["Casualty_class"].value_counts().reset_index()
-        cc.columns = ["Class", "Count"]
-        fig_cd = go.Figure(go.Pie(
-            labels=cc["Class"].str.title(), values=cc["Count"],
-            hole=0.6,
-            marker=dict(colors=[NAVY, AMBER, RED, OLIVE][:len(cc)], line=dict(color=INK, width=2)),
-            textinfo="label+percent",
-            textfont=dict(family="Inter", size=12, color=CREAM),
-        ))
-        fig_cd.update_layout(
-            showlegend=False,
-            annotations=[dict(
-                text=f"<b style='font-family:Fraunces,serif;font-size:28px;color:{CREAM}'>"
-                     f"{int(cc['Count'].sum()):,}</b><br>"
-                     f"<span style='font-family:DM Mono,monospace;font-size:10px;color:{MUTED};letter-spacing:0.15em'>"
-                     f"CASUALTIES</span>",
-                x=0.5, y=0.5, showarrow=False,
-            )],
-        )
-        st.plotly_chart(
-            editorial_layout(fig_cd, 400,
-                             "Who pays the price?",
-                             "DONUT · CASUALTY CLASS"),
-            use_container_width=True, config={"displayModeBar": False},
-        )
+        st.markdown(f"""
+          <div style='background:{PAPER};border-left:3px solid {RED};padding:10px 14px;margin:6px 0 14px;font-size:12.5px;line-height:1.55;color:{CREAM_DIM}'>
+            <b style='color:{CREAM};font-family:DM Mono,monospace;font-size:10.5px;letter-spacing:0.15em;text-transform:uppercase'>How to read this</b><br/>
+            Tile size = how many accidents happened on that surface type. Tile colour = fatal rate (cool = mostly slight, hot = disproportionately deadly).
+          </div>
+        """, unsafe_allow_html=True)
 
     st.markdown(
         f"<div class='pullquote'>Overtaking. Night driving. Earth roads. Pedestrian collisions. "
