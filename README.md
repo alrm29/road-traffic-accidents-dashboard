@@ -1,30 +1,25 @@
-# Indian Food Image Classification
+# Road Traffic Accidents Dashboard
 
-This project uses machine learning and deep learning to classify Indian food images. It includes model training, evaluation, and visualization of results.
+This project is an interactive data visualization dashboard built using Python and Streamlit. It analyzes road traffic accident data and presents useful insights through charts, filters, and summary statistics.
 
 ## Project Overview
 
-The goal of this project is to build an image classification model that can recognize different types of Indian food. The project uses CNN-based training and ResNet18 transfer learning to improve classification performance.
+The goal of this project is to explore traffic accident data and understand patterns related to accidents. The dashboard helps users view accident trends in a simple and interactive way.
 
 ## Tools Used
 
 * Python
-* PyTorch
-* Torchvision
-* NumPy
+* Streamlit
 * Pandas
-* Matplotlib
-* Scikit-learn
+* Plotly
 
 ## Features
 
-* Image classification model
-* CNN training
-* ResNet18 transfer learning
-* Accuracy and loss visualization
-* Confusion matrix
-* Classification report
-* Model evaluation results
+* Interactive dashboard
+* Data cleaning and analysis
+* Visual charts and graphs
+* Accident trend exploration
+* User-friendly interface
 
 ## How to Run
 
@@ -34,16 +29,17 @@ The goal of this project is to build an image classification model that can reco
 pip install -r requirements.txt
 ```
 
-2. Run the training script:
+2. Run the Streamlit app:
 
 ```bash
-python run_resnet18.py
+streamlit run streamlit_app/app.py
 ```
 
-## Results
+## Dataset
 
-The project includes evaluation outputs such as accuracy/loss curves, confusion matrix, and classification report.
+The project uses a road traffic accident dataset for analysis and visualization.
 
 ## Project Purpose
 
-This project was created to practice machine learning, deep learning, image classification, and model evaluation.
+This project was created to practice data visualization, data analysis, and dashboard development using Python.
+
